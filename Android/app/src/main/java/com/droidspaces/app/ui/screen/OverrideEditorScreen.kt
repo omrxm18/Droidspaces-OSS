@@ -24,7 +24,7 @@ import com.droidspaces.app.ui.util.showSuccess
 import com.droidspaces.app.util.ContainerSystemdManager
 import kotlinx.coroutines.launch
 
-private const val OVERRIDE_TEMPLATE = "[Service]\n"
+private val OverrideEditorMono = FontFamily(Font(R.font.jetbrains_mono_regular, FontWeight.Normal))
 
 /**
  * Editor for a unit's override.conf drop-in (`/etc/systemd/system/<unit>.d/override.conf`),
@@ -32,6 +32,9 @@ private const val OVERRIDE_TEMPLATE = "[Service]\n"
  * "Edit override" overflow-menu item on [SystemdScreen], or the edit icon on
  * [UnitDetailScreen].
  */
+
+private const val DEFAULT_TEMPLATE = "[Service]\n"
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OverrideEditorScreen(
@@ -50,8 +53,19 @@ fun OverrideEditorScreen(
 
     LaunchedEffect(containerName, unitName) {
         val existing = ContainerSystemdManager.getOverrideConf(containerName, unitName)
-        hasExistingOverride = existing != null
-        text = existing ?: OVERRIDE_TEMPLATE
+        if (existing != null) {
+            text = existing
+            hasExistingOverride = true
+        } else {
+            val result = ContainerSystemdManager.executeSystemctlCommand(containerName,"cat $unitName")
+            text = if (result.isSuccess) {
+                // Prepend comments to indicate this is the original file content
+                result.output.joinToString("\n") { "# $it" } + "\n\n[Service]\n"
+            } else {
+                DEFAULT_TEMPLATE
+            }
+            hasExistingOverride = false
+        }
         isLoading = false
     }
 
@@ -76,7 +90,7 @@ fun OverrideEditorScreen(
             val result = ContainerSystemdManager.deleteOverrideConf(containerName, unitName)
             isSaving = false
             if (result.isSuccess) {
-                text = OVERRIDE_TEMPLATE
+                text = DEFAULT_TEMPLATE
                 hasExistingOverride = false
                 snackbarHostState.showSuccess(context.getString(R.string.override_removed))
             } else {
