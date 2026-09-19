@@ -3,6 +3,7 @@ package com.droidspaces.app.ui.screen
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -122,14 +123,28 @@ private fun JournaldContent(logs: List<String>) {
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
         shape = RoundedCornerShape(12.dp)
     ) {
+        val listState = rememberLazyListState()
+
+        LaunchedEffect(logs) {
+            if (logs.isNotEmpty()) {
+                listState.scrollToItem(logs.size - 1)
+            }
+        }
+
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(12.dp)
         ) {
             items(logs) { line ->
                 Text(
                     text = line,
-                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMono)
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMono),
+                    color = when {
+                        line.contains("error", ignoreCase = true) || line.contains("fail", ignoreCase = true) -> Color(0xFFEF5350)
+                        line.contains("warn", ignoreCase = true) -> Color(0xFFFFCA28)
+                        else -> MaterialTheme.colorScheme.onSurface
+                    }
                 )
             }
         }
