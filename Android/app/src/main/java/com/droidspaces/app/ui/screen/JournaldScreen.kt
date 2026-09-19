@@ -51,8 +51,8 @@ fun JournaldScreen(
         selectedLineCount.toIntOrNull() ?: 100
     }
 
-    LaunchedEffect(containerName, unitName) {
-        viewModel.loadLogs(containerName, unitName, selectedLineCount.toIntOrNull() ?: 100)
+    LaunchedEffect(containerName, unitName, lineCount) {
+        viewModel.loadLogs(containerName, unitName, lineCount)
     }
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -82,17 +82,11 @@ fun JournaldScreen(
                     actions = {
                         LineCountSelector(
                             selected = selectedLineCount,
-                            onSelected = { selectedLineCount = it }
+                            onSelected = { selectedLineCount = it },
+                            customValue = customLineCount,
+                            onCustomValueChange = { customLineCount = it },
+                            enabled = state !is JournaldState.Loading
                         )
-                        if (selectedLineCount == "custom") {
-                            OutlinedTextField(
-                                value = customLineCount,
-                                onValueChange = { customLineCount = it.filter(Char::isDigit) },
-                                modifier = Modifier.width(80.dp),
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                            )
-                        }
                         IconButton(
                             onClick = { viewModel.loadLogs(containerName, unitName, lineCount) },
                             enabled = state !is JournaldState.Loading
@@ -131,21 +125,23 @@ private fun JournaldContent(logs: List<String>) {
             }
         }
 
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(12.dp)
-        ) {
-            items(logs) { line ->
-                Text(
-                    text = line,
-                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMono),
-                    color = when {
-                        line.contains("error", ignoreCase = true) || line.contains("fail", ignoreCase = true) -> Color(0xFFEF5350)
-                        line.contains("warn", ignoreCase = true) -> Color(0xFFFFCA28)
-                        else -> MaterialTheme.colorScheme.onSurface
-                    }
-                )
+        SelectionContainer {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(12.dp)
+            ) {
+                items(logs) { line ->
+                    Text(
+                        text = line,
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMono),
+                        color = when {
+                            line.contains("error", ignoreCase = true) || line.contains("fail", ignoreCase = true) -> Color(0xFFEF5350)
+                            line.contains("warn", ignoreCase = true) -> Color(0xFFFFCA28)
+                            else -> MaterialTheme.colorScheme.onSurface
+                        }
+                    )
+                }
             }
         }
     }
@@ -178,28 +174,32 @@ private fun JournaldError(onRetry: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LineCountSelector(
     selected: String,
-    onSelected: (String) -> Unit
+    onSelected: (String) -> Unit,
+    customValue: String,
+    onCustomValueChange: (String) -> Unit,
+    enabled: Boolean
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val options = listOf("10", "100", "1000", "custom")
+    var showCustomDialog by remember { mutableStateOf(false) }
+    val options = listOf("50", "100", "500", "1000")
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it }
-    ) {
-        TextField(
-            value = selected,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Lines") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.menuAnchor()
-        )
-        ExposedDropdownMenu(
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            enabled = enabled,
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text(
+                text = if (selected == "custom") customValue.ifEmpty { "..." } else selected,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
@@ -212,6 +212,49 @@ private fun LineCountSelector(
                     }
                 )
             }
+            DropdownMenuItem(
+                text = { Text("Custom...") },
+                onClick = {
+                    expanded = false
+                    showCustomDialog = true
+                }
+            )
         }
+    }
+
+    if (showCustomDialog) {
+        var tempValue by remember { mutableStateOf(customValue) }
+        AlertDialog(
+            onDismissRequest = { showCustomDialog = false },
+            title = { Text("Custom Line Count") },
+            text = {
+                OutlinedTextField(
+                    value = tempValue,
+                    onValueChange = { tempValue = it.filter(Char::isDigit) },
+                    label = { Text("Lines") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (tempValue.isNotEmpty()) {
+                            onCustomValueChange(tempValue)
+                            onSelected("custom")
+                        }
+                        showCustomDialog = false
+                    }
+                ) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCustomDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
