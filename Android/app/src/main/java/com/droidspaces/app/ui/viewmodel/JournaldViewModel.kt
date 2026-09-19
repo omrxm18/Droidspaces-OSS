@@ -19,10 +19,10 @@ class JournaldViewModel(application: Application) : AndroidViewModel(application
     var state by mutableStateOf<JournaldState>(JournaldState.Loading)
         private set
 
-    fun loadLogs(containerName: String, unitName: String) {
+    fun loadLogs(containerName: String, unitName: String, lines: Int) {
         viewModelScope.launch {
             state = JournaldState.Loading
-            val logs = ContainerSystemdManager.dumpJournal(containerName, unitName, getApplication())
+            val logs = ContainerSystemdManager.dumpJournal(containerName, unitName, getApplication(), lines)
             state = if (logs.isNotEmpty()) {
                 JournaldState.Ready(logs)
             } else {
