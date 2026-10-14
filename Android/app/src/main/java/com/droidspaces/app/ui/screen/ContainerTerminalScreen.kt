@@ -164,12 +164,13 @@ fun ContainerTerminalScreen(
 
     // Users change from inside the container (adduser in another tab), so ask every time
     // instead of trusting the cache. A picker with root as its only row is skipped.
-    suspend fun pickUserOrOpenRoot() {
-        if (fetchingUsers) return
+    suspend fun pickUserOrOpenRoot(fromButton: Boolean) {
+        if (fromButton && fetchingUsers) return
         fetchingUsers = true
         try {
             val users = ContainerUsersManager.getUsers(containerName, useCache = false)
             availableUsers = listOf("root") + users
+            if (!fromButton && (tabs.isNotEmpty() || showUserPicker)) return
             if (users.isEmpty()) {
                 addTab("root")
                 return
@@ -201,7 +202,7 @@ fun ContainerTerminalScreen(
             }
             activeTabId = existing.keys.last()
         } else {
-            pickUserOrOpenRoot()
+            pickUserOrOpenRoot(false)
         }
     }
 
@@ -290,7 +291,7 @@ fun ContainerTerminalScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = { scope.launch { pickUserOrOpenRoot() } }) {
+                        IconButton(onClick = { scope.launch { pickUserOrOpenRoot(true) } }) {
                             Icon(Icons.Default.Add, contentDescription = "New tab")
                         }
                     },
