@@ -74,24 +74,25 @@ static void pf_state_append(FILE *f, const char *variant, const char *proto,
 
 /* Return-path MASQUERADE for a forward. It used to match every source, which
  * rewrote LAN clients to the gateway address and hid their real IPs from the
- * container (Pi-hole saw one client). Only the host itself and other
- * containers need it, since their replies would otherwise skip the host and
- * get dropped. Every other source is left alone so the container sees who
- * really connected. */
+ * container (Pi-hole saw one client). Loopback clients and other containers
+ * still need it: their replies would otherwise skip the host and get dropped.
+ * LAN clients already route back through the host, so they keep their real
+ * address. The loopback source is 127/8, not addrtype LOCAL: that is where the
+ * OUTPUT-chain DNAT sends from, and it needs no xt_addrtype module. */
 static const char *const pf_masq_src[3][4] = {
-    {"-m", "addrtype", "--src-type", "LOCAL"},
+    {"-s", "127.0.0.0/8", NULL, NULL},
     {"-s", DS_DEFAULT_SUBNET, NULL, NULL},
     /* no source match: the rule older builds inserted, still removed so a
      * container started before an upgrade is cleaned up on stop */
     {NULL, NULL, NULL, NULL},
 };
 
-/* op is "-I" or "-D". Inserts skip the legacy row. Returns 1 when every rule
- * that was attempted went in. */
+/* op is "-I" or "-D". Inserts skip the legacy row. Returns the number of
+ * insert rules that went in; deletes return 0. */
 static int pf_masq(const char *op, const char *proto, const char *container_ip,
                    const char *cont_port_str) {
   int insert = (strcmp(op, "-I") == 0);
-  int ok = 1;
+  int added = 0;
   for (int i = 0; i < (insert ? 2 : 3); i++) {
     char *argv[24];
     int n = 0;
@@ -113,10 +114,10 @@ static int pf_masq(const char *op, const char *proto, const char *container_ip,
     argv[n++] = "-j";
     argv[n++] = "MASQUERADE";
     argv[n] = NULL;
-    if (run_command_quiet(argv) != 0)
-      ok = 0;
+    if (run_command_quiet(argv) == 0)
+      added++;
   }
-  return insert ? ok : 1;
+  return insert ? added : 0;
 }
 
 /* Read the state file and issue iptables -D for every recorded rule.
@@ -362,16 +363,17 @@ int ds_ipt_add_portforwards(struct ds_port_forward *pfs, int count,
       ds_warn("portforward: localhost OUTPUT DNAT failed for port %s",
               host_port_str);
 
-    int masq_ok = pf_masq("-I", pf->proto, container_ip, cont_port_str);
-    if (!masq_ok)
-      ds_warn("portforward: localhost POSTROUTING MASQUERADE failed for "
-              "port %s",
-              cont_port_str);
+    int masq_added = pf_masq("-I", pf->proto, container_ip, cont_port_str);
+    if (masq_added != 2)
+      ds_warn("portforward: POSTROUTING MASQUERADE %s for port %s",
+              masq_added ? "incomplete" : "failed", cont_port_str);
 
     if (lo_ok)
       pf_state_append(state_f, "local_out", pf->proto, host_port_str, to_dest,
                       cont_port_str);
-    if (masq_ok)
+    /* Record even a partial insert: removal walks every source variant, so
+     * one surviving rule is still cleaned up if the config changes. */
+    if (masq_added)
       pf_state_append(state_f, "local_post", pf->proto, host_port_str, to_dest,
                       cont_port_str);
   }
