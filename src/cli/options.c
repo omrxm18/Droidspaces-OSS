@@ -135,6 +135,7 @@ const struct option long_options[] = {
     {"allow-userns", no_argument, 0, 279}, /* old name, kept for scripts */
     {"allow-vts", no_argument, 0, 278},
     {"allow-swap", no_argument, 0, 284},
+    {"list", no_argument, 0, 285},
     {"volatile", no_argument, 0, 'V'},
     {"bind-mount", required_argument, 0, 'B'},
     {"bind", required_argument, 0, 'B'},
@@ -472,6 +473,9 @@ int ds_apply_cli_overrides(int argc, char **argv, struct ds_config *cfg,
         return -1;
       }
       safe_strncpy(cfg->custom_init, optarg, sizeof(cfg->custom_init));
+      break;
+    case 285:
+      /* --list: handled by the caller after parsing. */
       break;
     default:
       break;

@@ -122,3 +122,85 @@ int show_containers(struct ds_config *cfg) {
   free(containers);
   return 0;
 }
+
+int list_containers(struct ds_config *cfg) {
+  char container_dir[PATH_MAX];
+  snprintf(container_dir, sizeof(container_dir), "%s/%s", get_workspace_dir(),
+           DS_CONTAINERS_DIR);
+
+  DIR *d = opendir(container_dir);
+  if (!d) {
+    if (errno == ENOENT) {
+      if (cfg->json_output)
+        printf("{\"available\":[]}\n");
+      return 0;
+    }
+    ds_error("Failed to open containers directory: %s", strerror(errno));
+    return -1;
+  }
+
+  struct {
+    char name[256];
+    int running;
+  } *items = NULL;
+  int count = 0, cap = 0;
+  struct dirent *ent;
+  while ((ent = readdir(d)) != NULL) {
+    if (ent->d_name[0] == '.')
+      continue;
+
+    char fullpath[PATH_MAX];
+    if (snprintf(fullpath, sizeof(fullpath), "%s/%s", container_dir,
+                 ent->d_name) >= (int)sizeof(fullpath))
+      continue;
+
+    struct stat st;
+    if (stat(fullpath, &st) != 0 || !S_ISDIR(st.st_mode))
+      continue;
+
+    if (count >= cap) {
+      int ncap = cap ? cap * 2 : 16;
+      void *tmp = realloc(items, (size_t)ncap * sizeof(*items));
+      if (!tmp) {
+        closedir(d);
+        free(items);
+        return -1;
+      }
+      items = tmp;
+      cap = ncap;
+    }
+
+    struct ds_config peek;
+    ds_config_init(&peek);
+    safe_strncpy(items[count].name, ent->d_name, sizeof(items[count].name));
+    if (ds_config_peek(ent->d_name, &peek) == 0 && peek.container_name[0])
+      safe_strncpy(items[count].name, peek.container_name,
+                   sizeof(items[count].name));
+
+    pid_t pid = 0;
+    /* Use the directory/sanitized name for runtime lookup. */
+    safe_strncpy(peek.container_name, ent->d_name, sizeof(peek.container_name));
+    items[count].running = is_container_running(&peek, &pid);
+    ds_config_free(&peek);
+    count++;
+  }
+  closedir(d);
+
+  if (cfg->json_output) {
+    printf("{\"available\":[");
+    for (int i = 0; i < count; i++) {
+      int first = 1;
+      printf(i ? ",{" : "{");
+      ds_json_str("name", items[i].name, &first);
+      printf(",\"running\":%s", items[i].running ? "true" : "false");
+      printf("}");
+    }
+    printf("]}\n");
+  } else {
+    for (int i = 0; i < count; i++)
+      printf("%s\n", items[i].name);
+  }
+
+  free(items);
+  return 0;
+}

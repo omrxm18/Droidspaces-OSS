@@ -36,5 +36,6 @@ void ds_json_status(const struct ds_status *st, int *first);
 
 /* show.c */
 int show_containers(struct ds_config *cfg);
+int list_containers(struct ds_config *cfg);
 
 #endif /* DS_STATUS_STATUS_H */

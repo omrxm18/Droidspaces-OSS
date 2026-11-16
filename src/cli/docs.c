@@ -192,14 +192,18 @@ static void print_page(int page, const char *bin) {
     p_printf("  Note: You can also reboot by running `reboot` inside the\n");
     p_printf("  container shell or remotely (e.g. via SSH).\n\n");
 
-    p_printf("%sListing Containers:%s\n", bold, reset);
+    p_printf("%sListing Running Containers:%s\n", bold, reset);
     p_printf("  %s show\n", bin);
     p_printf("  (Displays name and PID inside a table)\n\n");
 
-    p_printf("%sListing Containers (JSON):%s\n", bold, reset);
+    p_printf("%sListing Running Containers (JSON):%s\n", bold, reset);
     p_printf("  %s --json show\n", bin);
     p_printf(
         "  (Adds OS, hostname, IP, uptime, CPU and RAM per container)\n\n");
+
+    p_printf("%sListing Available Containers:%s\n", bold, reset);
+    p_printf("  %s --list\n", bin);
+    p_printf("  %s --json --list\n\n", bin);
 
     p_printf("%sTechnical Information:%s\n", bold, reset);
     p_printf("  %s --name=mycontainer info\n", bin);

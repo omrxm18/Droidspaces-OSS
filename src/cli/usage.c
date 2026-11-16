@@ -129,9 +129,10 @@ void print_usage(void) {
       "comma-separation\n"
       "                            e.g. -B /data:/data -B /tmp:/tmp\n"
       "                            e.g. -B /data:/data,/tmp:/tmp\n"
+      "      --list                List available containers\n"
       "      --reset               Reset config to defaults (keeps "
       "name/rootfs)\n"
-      "      --json                JSON output (show, info, check)\n"
+      "      --json                JSON output (show, info, check, --list)\n"
       "      --help                Show this help message\n\n");
 
   printf(C_BOLD

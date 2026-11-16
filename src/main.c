@@ -222,6 +222,7 @@ int main(int argc, char **argv) {
   char temp_r[PATH_MAX] = {0}, temp_i[PATH_MAX] = {0};
   char run_user[256] = {0};
   int run_stdin = 0;
+  int want_list = 0;
   int opt;
 
   /* 1. Discovery Pass: Capture identity and command without permuting argv.
@@ -264,6 +265,8 @@ int main(int argc, char **argv) {
       safe_strncpy(run_user, optarg, sizeof(run_user));
     } else if (opt == 280) {
       run_stdin = 1;
+    } else if (opt == 285) {
+      want_list = 1;
     }
     /* Discover --net early so kernel probe can run before config load */
     if (opt == 257) {
@@ -300,7 +303,8 @@ int main(int argc, char **argv) {
 
   int has_no_args = !discovered_cmd || discovered_cmd[0] == '\0';
 
-  if (!is_daemon_cmd && !is_no_root_cmd && getenv("DS_NO_PROXY") == NULL) {
+  if (!is_daemon_cmd && !is_no_root_cmd && !want_list &&
+      getenv("DS_NO_PROXY") == NULL) {
     int proxy_ret =
         ds_client_run(argc - 1, argv + 1, discovered_cmd, run_stdin);
     if (proxy_ret != -2) {
@@ -310,15 +314,21 @@ int main(int argc, char **argv) {
   }
 
   /* Unified root gate: block all non-exempt commands before any work begins */
-  if (!is_no_root_cmd && getuid() != 0) {
+  if (!is_no_root_cmd && !want_list && getuid() != 0) {
     if (has_no_args) {
       print_usage();
       ret = 0;
-    }
-    else {
-      ds_error("Root privileges required for '%s'", discovered_cmd);
+    } else {
+      ds_error("Root privileges required for '%s'",
+               discovered_cmd ? discovered_cmd : "command");
       ret = 1;
     }
+    goto cleanup;
+  }
+
+  if (want_list) {
+    ensure_workspace();
+    ret = list_containers(&cfg);
     goto cleanup;
   }
 
