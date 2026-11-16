@@ -184,6 +184,26 @@ static int ds_multi_stop(const char *raw_names) {
   return ret;
 }
 
+/* delete with a comma-separated name list: delete each one in turn, 1 if any
+ * of them failed. */
+static int ds_multi_delete(const char *raw_names) {
+  char tmp[4096];
+  snprintf(tmp, sizeof(tmp), "%s", raw_names);
+  int ret = 0;
+  char *sp, *tok = strtok_r(tmp, ",", &sp);
+  while (tok) {
+    struct ds_config c;
+    ds_config_init(&c);
+    safe_strncpy(c.container_name, tok, sizeof(c.container_name));
+    safe_strncpy(ds_log_container_name, tok, sizeof(ds_log_container_name));
+    if (delete_container(&c) != 0)
+      ret = 1;
+    tok = strtok_r(NULL, ",", &sp);
+  }
+  ds_log_container_name[0] = '\0';
+  return ret;
+}
+
 int main(int argc, char **argv) {
   int ret = 0;
   struct ds_config cfg;
@@ -347,7 +367,8 @@ int main(int argc, char **argv) {
                           strcmp(discovered_cmd, "pid") == 0 ||
                           strcmp(discovered_cmd, "info") == 0 ||
                           strcmp(discovered_cmd, "enter") == 0 ||
-                          strcmp(discovered_cmd, "run") == 0));
+                          strcmp(discovered_cmd, "run") == 0 ||
+                          strcmp(discovered_cmd, "delete") == 0));
 
   int loaded = 0;
   if (cfg.config_file_specified) {
@@ -395,7 +416,8 @@ int main(int argc, char **argv) {
         scan_containers();
         ds_log_silent = prev;
 
-        if (ds_config_load_by_name(cfg.container_name, &cfg) < 0) {
+        if (ds_config_load_by_name(cfg.container_name, &cfg) < 0 &&
+            !(discovered_cmd && strcmp(discovered_cmd, "delete") == 0)) {
           ds_error("Container '%s' not found or metadata missing.",
                    cfg.container_name);
           ret = 1;
@@ -505,6 +527,11 @@ int main(int argc, char **argv) {
 
   if (strcmp(cmd, "stop") == 0) {
     ret = multi ? ds_multi_stop(raw_names) : stop_rootfs(&cfg, 0);
+    goto cleanup;
+  }
+
+  if (strcmp(cmd, "delete") == 0) {
+    ret = multi ? ds_multi_delete(raw_names) : delete_container(&cfg);
     goto cleanup;
   }
 

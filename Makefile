@@ -111,6 +111,7 @@ SRCS = $(SRC_DIR)/main.c \
        $(SRC_DIR)/container/cleanup.c \
        $(SRC_DIR)/container/start.c \
        $(SRC_DIR)/container/stop.c \
+       $(SRC_DIR)/container/delete.c \
        $(SRC_DIR)/container/exec.c \
        $(SRC_DIR)/container/info.c \
        $(SRC_DIR)/container/restart.c \

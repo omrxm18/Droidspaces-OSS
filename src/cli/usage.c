@@ -30,6 +30,7 @@ void print_usage(void) {
          "  start                     Start a new container\n"
          "  stop                      Stop one or more containers\n"
          "  restart                   Restart a container\n"
+         "  delete                    Delete one or more containers\n"
          "  enter [user]              Enter a running container\n"
          "  run [--] <cmd> [args]     Run a command in a running container\n"
          "  info                      Show detailed container info\n"

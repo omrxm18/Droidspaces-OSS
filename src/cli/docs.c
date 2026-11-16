@@ -178,6 +178,10 @@ static void print_page(int page, const char *bin) {
     p_printf("  %s --name=mycontainer stop\n", bin);
     p_printf("  %s stop --name=c1,c2,c3 (Multi-stop)\n\n", bin);
 
+    p_printf("%sDeleting:%s\n", bold, reset);
+    p_printf("  %s --name=mycontainer delete\n", bin);
+    p_printf("  %s delete --name=c1,c2,c3 (Multi-delete)\n\n", bin);
+
     p_printf("%sUsing Configuration Files:%s\n", bold, reset);
     p_printf("  %s --config=./container.config start\n", bin);
     break;

@@ -98,4 +98,7 @@ int stop_rootfs(struct ds_config *cfg, int skip_unmount);
 int stop_rootfs_with_timeout(struct ds_config *cfg, int skip_unmount,
                              int timeout_seconds);
 
+/* delete.c */
+int delete_container(struct ds_config *cfg);
+
 #endif /* DS_CONTAINER_CONTAINER_H */
