@@ -298,6 +298,8 @@ int main(int argc, char **argv) {
                           strcmp(discovered_cmd, "mode") == 0 ||
                           strcmp(discovered_cmd, "check") == 0));
 
+  int has_no_args = !discovered_cmd || discovered_cmd[0] == '\0';
+
   if (!is_daemon_cmd && !is_no_root_cmd && getenv("DS_NO_PROXY") == NULL) {
     int proxy_ret =
         ds_client_run(argc - 1, argv + 1, discovered_cmd, run_stdin);
@@ -309,9 +311,14 @@ int main(int argc, char **argv) {
 
   /* Unified root gate: block all non-exempt commands before any work begins */
   if (!is_no_root_cmd && getuid() != 0) {
-    ds_error("Root privileges required for '%s'",
-             discovered_cmd ? discovered_cmd : "(unknown)");
-    ret = 1;
+    if (has_no_args) {
+      print_usage();
+      ret = 0;
+    }
+    else {
+      ds_error("Root privileges required for '%s'", discovered_cmd);
+      ret = 1;
+    }
     goto cleanup;
   }
 
